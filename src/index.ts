@@ -76,61 +76,23 @@ app.get("/content", async (c) => {
   }
 
   try {
-    const directoryContentsUrl = `https://api.github.com/repos/${owner}/${repo}/contents/src/data/roadmaps/${name}/content`;
+    const apiUrl = `https://uithub.com/${owner}/${repo}/tree/master/src/data/roadmaps/${name}/content?accept=application%2Fjson`;
 
-    const headers: HeadersInit = {
-      Accept: "application/vnd.github+json",
-      "User-Agent": "Hono-Workers-GitHub-Fetcher",
-    };
-
-    const response = await fetch(directoryContentsUrl, { headers });
-
+    const response = await fetch(apiUrl);
     if (!response.ok) {
       return c.json(
         {
-          error: "Failed to fetch data from GitHub",
+          error: "Failed to fetch data from UitHub",
           status: response.status,
           message: await response.text(),
         },
         response.status as any,
       );
     }
+    const contents = (await response.json()) as any;
 
-    const contents = await response.json();
-    let mdFiles: any[] = [];
-
-    if (Array.isArray(contents)) {
-      mdFiles = contents.filter(
-        (item) => item.type === "file" && item.name.endsWith(".md"),
-      );
-
-      const mdContents = await Promise.all(
-        mdFiles.map(async (file) => {
-          const fileResponse = await fetch(file.download_url, { headers });
-          if (fileResponse.ok) {
-            const content = await fileResponse.text();
-            return {
-              name: file.name,
-              content,
-            };
-          }
-          return {
-            name: file.name,
-            path: file.path,
-            error: "Failed to fetch file content",
-            download_url: file.download_url,
-          };
-        }),
-      );
-
-      return c.json({
-        name: name,
-        contents: mdContents,
-      });
-    }
     return c.json({
-      error: "The specified path is not a directory",
-      item: contents,
+      files: contents.files,
     });
   } catch (error) {
     console.error("Error:", error);
